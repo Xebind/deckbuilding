@@ -90,10 +90,12 @@ impl Market{
     return lowest;
     }
 
-    pub fn render(&self) {
+    pub fn render(&self) ->String {
+        let mut market = String::new();
         for i in 0..self.available.len(){
-            println!(" Option {} has price {}, power {} and value {}", i, self.available[i].price, self.available[i].power, self.available[i].value);
+            market.push_str(&format!(" Option {} has price {}, power {} and value {} \n", i, self.available[i].price, self.available[i].power, self.available[i].value));
         }
+        return market;
     }
 }
 

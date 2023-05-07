@@ -6,4 +6,16 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+axum = "0.6.18"
+axum-route = "0.1.1"
+web = "0.2.12"
+hyper = {version = "0.14.26", features = ["full"]}
+tokio = {version = "1.28.0", features = ["full"]}
+tower = {version = "0.4.13", features = ["full"]}
+tower-http = "0.4.0"
+tokio-stream = "0.1.14"
+async-session = "3.0.0"
+http = "0.2.9"
+serde = "1.0.162"
+chrono = "0.4.24"
 rand = "0.8.4"

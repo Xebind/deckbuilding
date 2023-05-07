@@ -4,11 +4,12 @@ use crate::player::Player;
 use rand::{Rng, thread_rng};
 use std::io;
 
-
+#[derive(Debug)]
 pub struct Game{
-    active_player: Player,
-    opponent_player: Player,
-    market: Market
+    pub active_player: Player,
+    pub opponent_player: Player,
+    pub market: Market,
+    pub logs: String
 }
 
 impl Game{
@@ -16,8 +17,16 @@ impl Game{
          Self{
             active_player: Player::new("You".to_string()),
             opponent_player: Player::new("ROBOT".to_string()),
-            market: Market::new()
+            market: Market::new(),
+            logs: String::new()
         }
+    }
+
+    pub fn reset(&mut self) {
+        self.active_player = Player::new("You".to_string());
+        self.opponent_player = Player::new("ROBOT".to_string());
+        self.market = Market::new();
+        self.logs = String::new();
     }
 
     fn switch_players(&mut self){
@@ -26,25 +35,30 @@ impl Game{
         self.opponent_player = previously_active_player;
     }
 
-    fn begin_turn(&mut self){
+    pub fn begin_turn(&mut self){
         self.active_player.start_turn();
         self.opponent_player.receive_dmg(self.active_player.power);
-        print!("Player {} gets hit for {} dmg, {} health remaining \n  \n", self.opponent_player.name ,self.active_player.power, self.opponent_player.health);
+        self.add_to_logs(format!("Player {} gets hit for {} dmg, {} health remaining \n  \n", self.opponent_player.name ,self.active_player.power, self.opponent_player.health));
     }
 
-    fn end_turn(&mut self){
+    pub fn end_turn(&mut self){
         self.active_player.end_turn();
         self.switch_players();
     }
 
-    fn get_winner(&self) -> Option<Player>{
+    pub fn get_winner(&mut self) -> bool {
         if self.active_player.health < 1{
-            return Some(self.opponent_player.clone());
+            self.add_to_logs( format!("\n \n \nWinner is {:?}!", self.opponent_player.name));
+            return true;
         }
         if self.opponent_player.health < 1 {
-            return Some(self.active_player.clone());
+            self.add_to_logs( format!("\n \n \nWinner is {:?}!", self.active_player.name));
+            return true;
         }
-        None
+        return false;
+    }
+    pub fn add_to_logs(&mut self, log:String){
+        self.logs.push_str(&log);
     }
 
     fn buy_random_card(&mut self) {
@@ -57,10 +71,10 @@ impl Game{
             }
             index += 1;
         }
-        self.market.render();
+        self.add_to_logs( self.market.render());
         let index = thread_rng().gen_range(0..possible_cards.len());
         let selected_card = self.market.available[possible_cards[index]].clone();
-        println!("{} selected option {}, paying the cost {} with power {} and value {}", self.active_player.name, possible_cards[index], selected_card.price, selected_card.power, selected_card.value);
+        self.add_to_logs( format!("\n {} selected option {}, paying the cost {} with power {} and value {} \n \n ",self.active_player.name, possible_cards[index], selected_card.price, selected_card.power, selected_card.value));
         self.active_player.spend_coins(selected_card.price);
         self.active_player.add_card_to_discard(selected_card);
         self.market.available.remove(possible_cards[index]);
@@ -75,7 +89,7 @@ impl Game{
         if selected_card.price > self.active_player.value{
             return println!("You don't have enough money");
         }
-        println!("{} selected option {}, paying the cost {} with power {} and value {}", self.active_player.name, index, selected_card.price, selected_card.power, selected_card.value);
+        self.add_to_logs( format!("\n {} selected option {}, paying the cost {} with power {} and value {} \n \n", self.active_player.name, index, selected_card.price, selected_card.power, selected_card.value));
 
         self.active_player.spend_coins(selected_card.price);
         self.active_player.add_card_to_discard(selected_card);
@@ -83,7 +97,7 @@ impl Game{
         self.market.new_available();
     }
 
-    fn real_player_turn(&mut self){
+    fn real_player_cli_turn(&mut self){
 
             self.market.render();
             let mut market_selection = String::new();
@@ -91,32 +105,80 @@ impl Game{
                 .read_line(&mut market_selection)
                 .expect("Failed to read line");
             self.buy_card(market_selection.trim().parse().expect("Please type a number!"));
-
     }
 
-    pub fn run(&mut self) {
+    pub fn real_player_api_turn(&mut self, index:usize){
+       if self.get_winner(){
+            return;
+        }
+        self.market.render();
+        self.buy_card(index);
+    }
+
+    pub fn run_random(&mut self){
+        loop {
+            if self.get_winner(){
+                return;
+            }
+            loop {
+                if self.active_player.can_buy_cards(self.market.lowest_price()) && self.market.available.len() > 0 {
+                   self.add_to_logs( format!("Player {} has {} coins \n", self.active_player.name, self.active_player.value));
+                    self.buy_random_card();
+                }
+                else{
+                    self.end_turn();
+                    self.begin_turn();
+                    break;
+                }
+            }
+        }
+    }
+
+
+    pub fn run_game(&mut self) {
+        if self.get_winner(){
+            return;
+        }
+        loop {
+            if self.active_player.can_buy_cards(self.market.lowest_price()) && self.market.available.len() > 0 {
+                self.add_to_logs( format!("Player {} has {} coins \n", self.active_player.name, self.active_player.value));
+                if self.active_player.name == "You".to_string() {
+                    self.add_to_logs( self.market.render());
+                    return
+                } else {
+                    self.buy_random_card();
+                }
+            } else {
+                self.end_turn();
+                self.begin_turn();
+
+            }
+            if self.get_winner()  {
+                return;
+            }
+        }
+    }
+
+
+    pub fn run_cli(&mut self) {
         //todo: check if really the market is being updated or just the copy
         loop {
-            match self.get_winner() {
-                Some(player) => {
-                    return println!("Winner is {:?}!", player.name);
-                },
-                None => {
-                    self.begin_turn();
-                    loop {
-                        if self.active_player.can_buy_cards(self.market.lowest_price()) && self.market.available.len() > 0 {
-                            println!("Player {} has {} coins", self.active_player.name, self.active_player.value);
-                            if self.active_player.name == "You".to_string() {
-                                self.real_player_turn();
-                            } else {
-                                self.buy_random_card();
-                            }
-                        }
-                        else{
-                            self.end_turn();
-                            break;
-                        }
+            if self.get_winner(){
+                return;
+            }
+            loop {
+                if self.active_player.can_buy_cards(self.market.lowest_price()) && self.market.available.len() > 0 {
+                    println!("Player {} has {} coins", self.active_player.name, self.active_player.value);
+                    if self.active_player.name == "You".to_string() {
+                        self.real_player_cli_turn();
+                    } else {
+                        self.buy_random_card();
                     }
+                }
+                else{
+                    self.end_turn();
+                    self.begin_turn();
+                    break;
                 }
             }
         }
