@@ -15,7 +15,7 @@ pub struct Player {
     pub power: i32,
     pub value: i32,
     deck: Vec<Card>,
-    hand: Vec<Card>,
+    pub hand: Vec<Card>,
     discard: Vec<Card>
 }
 
@@ -30,7 +30,7 @@ impl Player {
             hand: vec![],
             discard: vec![]
         }
-        }
+    }
 
 
         fn deck()->Vec<Card>{
@@ -103,6 +103,9 @@ impl Player {
 
     pub fn spend_coins(&mut self, value:i32){
         self.value -= value;
+    }
+    pub fn hand(&mut self){
+        self.hand.clone();
     }
 }
 
