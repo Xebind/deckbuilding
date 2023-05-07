@@ -1,0 +1,39 @@
+name: Build Deckbuilding API Game Image to Google Cloud Platform
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-push-gcr:
+    name: Build and Push to GCP
+    runs-on: ubuntu-latest
+    env:
+      IMAGE_NAME: deckbuilding
+      PROJECT_ID: chat-git-pity
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+
+    - uses: google-github-actions/setup-gcloud@main
+      with:
+        service_account_key: ${{ secrets.SERVICE_ACCOUNT_KEY }}
+        project_id: chat-git-pity
+        export_default_credentials: true
+        context: .
+
+    - name: Build Docker Image
+      working-directory: ./
+      run: docker build -t $IMAGE_NAME:latest .
+
+    - name: Configure Docker Client
+      run: |-
+        gcloud auth configure-docker --quiet
+
+    - name: Push Docker Image to Container Registry
+      run: |-
+        docker tag $IMAGE_NAME:latest  europe-southwest1-docker.pkg.dev/$PROJECT_ID/$IMAGE_NAME:latest
+        docker push  europe-southwest1-docker.pkg.dev/$PROJECT_ID/$IMAGE_NAME:latest
+        
+        
+        
+        
